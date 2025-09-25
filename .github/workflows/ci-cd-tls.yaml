@@ -31,6 +31,11 @@ jobs:
           docker build -t anandh15/wisecow:latest .
           docker push anandh15/wisecow:latest
 
+      - name: Start Minikube
+        run: |
+          minikube start --driver=docker
+          kubectl cluster-info    
+
       - name: Set up kubeconfig
         run: |
           mkdir -p $HOME/.kube
