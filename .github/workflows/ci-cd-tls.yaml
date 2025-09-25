@@ -45,7 +45,7 @@ jobs:
         run: |
           kubectl apply -f kubernetes/wisecow-deployment.yaml --validate=false
           kubectl apply -f kubernetes/wisecow-service.yaml --validate=false
-          kubectl apply -f kubernetes/wisecow-ingress.yaml --validate=false
+          kubectl apply -f wisecow-ingress.yaml --validate=false
 
       - name: Check rollout status
         run: |
