@@ -1,0 +1,61 @@
+name: Wisecow CI/CD with TLS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t anandh15/wisecow:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push anandh15/wisecow:latest
+
+  deploy-to-kubernetes:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: v1.28.0
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_DATA }}" > $HOME/.kube/config
+
+      - name: Create TLS secret if not exists
+        run: |
+          if ! kubectl get secret wisecow-tls 2>/dev/null; then
+            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+              -keyout wisecow.key -out wisecow.crt \
+              -subj "/CN=wisecow.local/O=wisecow"
+            kubectl create secret tls wisecow-tls --key=wisecow.key --cert=wisecow.crt
+          else
+            echo "TLS secret already exists, skipping creation"
+          fi
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f kubernetes/wisecow-deployment.yaml
+          kubectl apply -f kubernetes/wisecow-service.yaml
+          kubectl apply -f kubernetes/wisecow-ingress.yaml
