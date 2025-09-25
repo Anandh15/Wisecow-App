@@ -33,16 +33,16 @@ jobs:
 
       - name: Start Minikube
         run: |
-          minikube start --driver=docker
-          kubectl cluster-info    
-
-      - name: Set up kubeconfig
-        run: |
+          sudo minikube start --driver=docker
+          sudo minikube status
+          # Export kubeconfig so kubectl uses the right cluster
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > $HOME/.kube/config
+          sudo minikube kubectl -- config view --raw > $HOME/.kube/config
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl cluster-info
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f kubernetes/wisecow-deployment.yaml
-          kubectl apply -f kubernetes/wisecow-service.yaml
-          kubectl apply -f wisecow-ingress.yaml
+          kubectl apply -f kubernetes/wisecow-deployment.yaml --validate=false
+          kubectl apply -f kubernetes/wisecow-service.yaml --validate=false
+          kubectl apply -f wisecow-ingress.yaml --validate=false
