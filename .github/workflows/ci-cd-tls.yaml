@@ -1,6 +1,5 @@
 name: CI/CD TLS Deployment  
 
-# Trigger the workflow on push to master branch
 on:
   push:
     branches:
@@ -17,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Docker
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
       - name: Log in to Docker Hub
@@ -31,18 +30,24 @@ jobs:
           docker build -t anandh15/wisecow:latest .
           docker push anandh15/wisecow:latest
 
-      - name: Start Minikube
+      # ✅ Replace Minikube with Kind
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: wisecow
+
+      - name: Verify cluster
         run: |
-          sudo minikube start --driver=docker
-          sudo minikube status
-          # Export kubeconfig so kubectl uses the right cluster
-          mkdir -p $HOME/.kube
-          sudo minikube kubectl -- config view --raw > $HOME/.kube/config
-          export KUBECONFIG=$HOME/.kube/config
           kubectl cluster-info
+          kubectl get nodes
 
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f kubernetes/wisecow-deployment.yaml --validate=false
           kubectl apply -f kubernetes/wisecow-service.yaml --validate=false
-          kubectl apply -f wisecow-ingress.yaml --validate=false
+          kubectl apply -f kubernetes/wisecow-ingress.yaml --validate=false
+
+      - name: Check rollout status
+        run: |
+          kubectl rollout status deployment/wisecow --timeout=90s
+          kubectl get all -n default
